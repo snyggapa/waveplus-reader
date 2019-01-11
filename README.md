@@ -28,6 +28,8 @@ this will run every 10 minutes and upload to thingspeak
 
 note that the 2nd command line parameter 60 is redundant here, I need to remove the code for it 
 
+senddata function taken from the thingspeak.com raspberry pi examples 
+
 --end edit--
 
 **Table of contents**
