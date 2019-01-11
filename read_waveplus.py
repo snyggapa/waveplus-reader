@@ -27,10 +27,22 @@
 # ===============================
 
 from bluepy.btle import UUID, Peripheral, Scanner, DefaultDelegate
+
+import smbus
+import os
+
+
 import sys
 import time
 import struct
 import tableprint
+import urllib            # URL functions
+import urllib2           # URL functions
+
+
+#set parameters
+THINGSPEAKKEY = '**YourThingSpeakAPIKeyGoesHere***'
+THINGSPEAKURL = 'https://api.thingspeak.com/update'
 
 # ===============================
 # Script guards for correct usage
@@ -76,6 +88,37 @@ if Mode!='pipe' and Mode!='terminal':
 SerialNumber = int(sys.argv[1])
 SamplePeriod = int(sys.argv[2])
 
+def sendData(url,key,field1,field2,field3,field4,field5,field6,field7,humid,rst,rlt,temp,press,co2,voc):
+  """
+  Send event to internet site
+  """
+
+  values = {'api_key' : key,'field1' : humid,'field2' : rst,'field3' : rlt,'field4' : temp,'field5' : press,'field6' : co2,'field7' : voc}
+
+  postdata = urllib.urlencode(values)
+  req = urllib2.Request(url, postdata)
+
+  log = time.strftime("%d-%m-%Y,%H:%M:%S") + ","
+  #log = log + "{:.1f}C".format(temp) + ","
+  #log = log + "{:.2f}mBar".format(pres) + ","
+
+  try:
+    # Send data to Thingspeak
+    response = urllib2.urlopen(req, None, 5)
+    html_string = response.read()
+    response.close()
+    log = log + 'Update ' + html_string
+
+  except urllib2.HTTPError, e:
+    log = log + 'Server could not fulfill the request. Error code: ' + e.code
+  except urllib2.URLError, e:
+    log = log + 'Failed to reach server. Reason: ' + e.reason
+  except:
+    log = log + 'Unknown error'
+
+  print log
+
+
 # ====================================
 # Utility functions for WavePlus class
 # ====================================
@@ -94,6 +137,8 @@ def parseSerialNumber(ManuDataHexStr):
         else:
             SN = "Unknown"
     return SN
+
+
 
 # ===============================
 # Class WavePlus
@@ -188,46 +233,50 @@ class Sensors():
     def getUnit(self, sensor_index):
         return self.sensor_units[sensor_index]
 
-try:
+#try:
     #---- Connect to device ----#
-    waveplus = WavePlus(SerialNumber)
-    waveplus.connect()
+waveplus = WavePlus(SerialNumber)
+waveplus.connect()
+
+if (Mode=='terminal'):
+    print "\nPress ctrl+C to exit program\n"
+
+print "Device serial number: %s" %(SerialNumber)
+
+header = ['Humidity', 'Radon ST avg', 'Radon LT avg', 'Temperature', 'Pressure', 'CO2 level', 'VOC level']
+
+if (Mode=='terminal'):
+    print tableprint.header(header, width=12)
+elif (Mode=='pipe'):
+    print header
     
-    if (Mode=='terminal'):
-        print "\nPress ctrl+C to exit program\n"
+#while True:
+print "moo"
+# read values
+sensors = waveplus.read()
+print "moo2"
+# extract
+humidity     = str(sensors.getValue(SENSOR_IDX_HUMIDITY))             + " " + str(sensors.getUnit(SENSOR_IDX_HUMIDITY))
+radon_st_avg = str(sensors.getValue(SENSOR_IDX_RADON_SHORT_TERM_AVG)) + " " + str(sensors.getUnit(SENSOR_IDX_RADON_SHORT_TERM_AVG))
+radon_lt_avg = str(sensors.getValue(SENSOR_IDX_RADON_LONG_TERM_AVG))  + " " + str(sensors.getUnit(SENSOR_IDX_RADON_LONG_TERM_AVG))
+temperature  = str(sensors.getValue(SENSOR_IDX_TEMPERATURE))          + " " + str(sensors.getUnit(SENSOR_IDX_TEMPERATURE))
+pressure     = str(sensors.getValue(SENSOR_IDX_REL_ATM_PRESSURE))     + " " + str(sensors.getUnit(SENSOR_IDX_REL_ATM_PRESSURE))
+CO2_lvl      = str(sensors.getValue(SENSOR_IDX_CO2_LVL))              + " " + str(sensors.getUnit(SENSOR_IDX_CO2_LVL))
+VOC_lvl      = str(sensors.getValue(SENSOR_IDX_VOC_LVL))              + " " + str(sensors.getUnit(SENSOR_IDX_VOC_LVL))
+
+# Print data
+data = [humidity, radon_st_avg, radon_lt_avg, temperature, pressure, CO2_lvl, VOC_lvl]
+
     
-    print "Device serial number: %s" %(SerialNumber)
-    
-    header = ['Humidity', 'Radon ST avg', 'Radon LT avg', 'Temperature', 'Pressure', 'CO2 level', 'VOC level']
-    
-    if (Mode=='terminal'):
-        print tableprint.header(header, width=12)
-    elif (Mode=='pipe'):
-        print header
+if (Mode=='terminal'):
+    print tableprint.row(data, width=12)
+elif (Mode=='pipe'):
+    print data
         
-    while True:
+#        time.sleep(SamplePeriod)
         
-        # read values
-        sensors = waveplus.read()
-        
-        # extract
-        humidity     = str(sensors.getValue(SENSOR_IDX_HUMIDITY))             + " " + str(sensors.getUnit(SENSOR_IDX_HUMIDITY))
-        radon_st_avg = str(sensors.getValue(SENSOR_IDX_RADON_SHORT_TERM_AVG)) + " " + str(sensors.getUnit(SENSOR_IDX_RADON_SHORT_TERM_AVG))
-        radon_lt_avg = str(sensors.getValue(SENSOR_IDX_RADON_LONG_TERM_AVG))  + " " + str(sensors.getUnit(SENSOR_IDX_RADON_LONG_TERM_AVG))
-        temperature  = str(sensors.getValue(SENSOR_IDX_TEMPERATURE))          + " " + str(sensors.getUnit(SENSOR_IDX_TEMPERATURE))
-        pressure     = str(sensors.getValue(SENSOR_IDX_REL_ATM_PRESSURE))     + " " + str(sensors.getUnit(SENSOR_IDX_REL_ATM_PRESSURE))
-        CO2_lvl      = str(sensors.getValue(SENSOR_IDX_CO2_LVL))              + " " + str(sensors.getUnit(SENSOR_IDX_CO2_LVL))
-        VOC_lvl      = str(sensors.getValue(SENSOR_IDX_VOC_LVL))              + " " + str(sensors.getUnit(SENSOR_IDX_VOC_LVL))
-        
-        # Print data
-        data = [humidity, radon_st_avg, radon_lt_avg, temperature, pressure, CO2_lvl, VOC_lvl]
-        
-        if (Mode=='terminal'):
-            print tableprint.row(data, width=12)
-        elif (Mode=='pipe'):
-            print data
-            
-        time.sleep(SamplePeriod)
-            
-finally:
-    waveplus.disconnect()
+#finally:
+waveplus.disconnect()
+
+sendData(THINGSPEAKURL,THINGSPEAKKEY,'field1','field2','field3','field4','field5','field6','field7',humidity,radon_st_avg,radon_lt_avg,temperature,pressure,CO2_lvl,VOC_lvl)
+
