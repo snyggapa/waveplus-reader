@@ -7,6 +7,29 @@ Model B over Bluetooth Low Energy (BLE).
 Airthings Wave Plus is a smart IAQ monitor with Radon detection, including sensors for
 temperature, air pressure, humidity, TVOCs and CO2.
 
+--edit bodged updated--
+
+note the requirement from the original source for python 2 and to run as SUDO
+
+changes made to pull the stats once, upload to thingspeak and terminate
+
+create a free thingspeak account with 7 fields.
+edit the python script and add the thingspeak API key
+
+use by creating a system crontab job with the following command:
+
+sudo crontab-e
+
+and add the line below, replacing the serial number of the unit and the paths as appropriate
+
+*/10 * * * * python2 /home/pi/read_waveplus.py unitserialnumber 60 pipe >>/home/pi/newprog.log 2>>/home/pi/newprog.err
+
+this will run every 10 minutes and upload to thingspeak
+
+note that the 2nd command line parameter 60 is redundant here, I need to remove the code for it 
+
+--end edit--
+
 **Table of contents**
 
 * [Requirements](#requirements)
